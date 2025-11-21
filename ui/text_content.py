@@ -13,7 +13,6 @@ def draw_info(window: curses.window, column: int, info):
     artist_icon = '󰠃'
     album_icon = '󰀥'
     time_icon = '󱫜'
-    youtube_icon = ''
 
     if status == 'Playing':
         status_icon = nf.icons['fa_play']
@@ -40,7 +39,7 @@ def draw_info(window: curses.window, column: int, info):
                       curses.color_pair(1) | curses.A_BOLD
                       )
         window.addstr(3, column, "{}  {}"
-                      .format(nf.icons(['fa_warning']), title), curses.A_BOLD
+                      .format(nf.icons['fa_exclamation_triangle'], title), curses.A_BOLD
                       )
 
         window.refresh()
@@ -51,10 +50,14 @@ def draw_info(window: curses.window, column: int, info):
                   curses.color_pair(5) | curses.A_BOLD
                   )
 
-    if ' - YouTube' in title and not artist and not album:
-        title_chunks = chop_string(title.replace(" - YouTube", ""), 32)
-        window.addstr(3, column, "{}  YouTube: {}"
-                      .format(youtube_icon, title_chunks[0]))
+    if title and not artist and not album:
+        action = '{}  Watching:'.format(nf.icons['fa_film'])
+        if ' - YouTube' in title:
+            title = title.replace(" - YouTube", "")
+            action = action = '{}  YouTube:'.format(nf.icons['fa_youtube_play'])
+        title_chunks = chop_string(title, 32)
+        window.addstr(3, column, "{} {}"
+                      .format(action, title_chunks[0]))
         if len(title_chunks) >= 2:
             window.addstr(4, column + 3, "{}".format(title_chunks[1]))
         if len(title_chunks) >= 3:
@@ -79,11 +82,11 @@ def draw_info(window: curses.window, column: int, info):
 
     if volume:
         if volume == 0.0:
-            volume_icon = ''
+            volume_icon = nf.icons['fa_volume_off']
         elif volume <= 0.6:
-            volume_icon = ''
+            volume_icon = nf.icons['fa_volume_down']
         elif volume > 0.6:
-            volume_icon = ''
+            volume_icon = nf.icons['fa_volume_up']
         vol_bar_length = 20
         window.addstr(10, column, "{}  Volume: {}%".format(
             volume_icon,

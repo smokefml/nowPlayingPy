@@ -1,3 +1,4 @@
+import asyncio
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.aio.proxy_object import ProxyInterface
 from dbus_next import errors as DBusErrors
@@ -46,19 +47,31 @@ class PlayerBusConnection:
     #---- Control del reproductor ----------------------
     async def play_pause(self):
         if self.player_interface:
-            await self.player_interface.call_play_pause()
+            try:
+                await self.player_interface.call_play_pause()
+            except Exception:
+                return
 
     async def next_track(self):
         if self.player_interface:
-            await self.player_interface.call_next()
+            try:
+                await self.player_interface.call_next()
+            except Exception:
+                return
 
     async def previous_track(self):
         if self.player_interface:
-            await self.player_interface.call_previous()
+            try:
+                await self.player_interface.call_previous()
+            except Exception:
+                return
 
     async def stop(self):
         if self.player_interface:
-            await self.player_interface.call_stop()
+            try:
+                await self.player_interface.call_stop()
+            except Exception:
+                return
 
     #---- Obtener datos (Props) ------------------------
     async def get_prop(self, iface_string: str, prop_string: str):
