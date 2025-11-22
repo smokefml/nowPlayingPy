@@ -3,24 +3,26 @@ import asyncio
 
 from dbus_service.player_bus_connection import PlayerBusConnection
 from tools.cover_tools import get_cover, no_cover
+from tools.json_tools import config_loader
 from ui.text_content import draw_info
 from ui.image_content import draw_picture
 
 MIN_WIDTH = 80
 MIN_HEIGHT = 22
-COVER_SIZE = 36
-DRAW_METHOD = 'icat'
-
-FAVORITE_PLAYER = "spotify"
 
 async def async_main(stdscr):
-    player_manager = PlayerBusConnection(FAVORITE_PLAYER)
+    config = config_loader()
+
+    player_manager = PlayerBusConnection(config["favorite_player"])
     try:
         await player_manager.connect()
     except Exception as e:
         print(f"Ocurrió un problema al conectar con DBus: {e}")
 
-    info_column = COVER_SIZE + 3
+    cover_size = config["cover_size"]
+    cover_method = config["cover_method"]
+    info_column = cover_size + 3
+    draw_borders = config["draw_borders"]
 
     old_height = 0
     old_width = 0
@@ -28,12 +30,10 @@ async def async_main(stdscr):
     curses.curs_set(0)
     stdscr.clear()
 
-    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+    base_bg = config["base_bg"]
+    ui_elements = config["ui_elements"]
+    curses.init_pair(1, curses.COLOR_RED, base_bg)
     curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)
-    curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    curses.init_pair(5, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-    curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_BLACK)
 
     last_cover = ""
 
@@ -66,7 +66,7 @@ async def async_main(stdscr):
             status = 'STOP'
             volume = None
             cover = no_cover()
-        
+
         playing_info = {
             "player": player_identity,
             "title": title,
@@ -80,40 +80,46 @@ async def async_main(stdscr):
         }
 
         if height < MIN_HEIGHT or width < MIN_WIDTH:
-            stdscr.addstr(2, 2, "Terminal Size: {}x{}".format(width, height), curses.color_pair(2))
+            stdscr.addstr(2, 2, f"Terminal Size: {width}x{height}", curses.color_pair(2))
             stdscr.addstr(4, 2, "Terminal too small!", curses.color_pair(1))
             stdscr.refresh()
         else:
             infowin = curses.newwin(height, width - info_column, 0, info_column)
-            infowin.border(
-                curses.ACS_VLINE, curses.ACS_VLINE,  # Lados izquierdo y derecho
-                curses.ACS_HLINE, curses.ACS_HLINE,  # Lados superior e inferior
-                curses.ACS_TTEE, curses.ACS_URCORNER, # Esquinas superior izq/der
-                curses.ACS_BTEE, curses.ACS_LRCORNER  # Esquinas inferior izq/der
-            )
-            leftwin = curses.newwin(height, info_column, 0, 0)
-            leftwin.border(
-                curses.ACS_VLINE, ' ',  # Lados izquierdo y derecho
-                curses.ACS_HLINE, curses.ACS_HLINE,  # Lados superior e inferior
-                curses.ACS_ULCORNER, curses.ACS_HLINE, # Esquinas superior izq/der
-                curses.ACS_LLCORNER, curses.ACS_HLINE # Esquinas inferior izq/der
-            )
-            leftwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
-            leftwin.refresh()
-            draw_info(infowin, 2, playing_info)
+            coverwin = curses.newwin(height, info_column, 0, 0)
+            if draw_borders:
+                infowin.border(
+                    curses.ACS_VLINE, curses.ACS_VLINE,  # Lados izquierdo y derecho
+                    curses.ACS_HLINE, curses.ACS_HLINE,  # Lados superior e inferior
+                    curses.ACS_TTEE, curses.ACS_URCORNER, # Esquinas superior izq/der
+                    curses.ACS_BTEE, curses.ACS_LRCORNER  # Esquinas inferior izq/der
+                )
+                coverwin.border(
+                    curses.ACS_VLINE, ' ',  # Lados izquierdo y derecho
+                    curses.ACS_HLINE, curses.ACS_HLINE,  # Lados superior e inferior
+                    curses.ACS_ULCORNER, curses.ACS_HLINE, # Esquinas superior izq/der
+                    curses.ACS_LLCORNER, curses.ACS_HLINE # Esquinas inferior izq/der
+                )
+                coverwin.addch(int(info_column / 2), 0, curses.ACS_LTEE)
+                infowin.addch(int(info_column / 2), 0, curses.ACS_RTEE)
+                coverwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
+            infowin.bkgd(' ', ui_elements['base_color'])
+            coverwin.bkgd(' ', ui_elements['base_color'])
+            coverwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
+            coverwin.refresh()
+            draw_info(infowin, playing_info, ui_elements)
             if cover != last_cover:
-                draw_picture(cover, DRAW_METHOD, COVER_SIZE)
+                draw_picture(cover, cover_method, cover_size)
                 last_cover = cover
 
         key = stdscr.getch()
-        if key == ord('q'):
-            break
-        elif key == ord(' '):
+        if key == ord(' '):
             await player_manager.play_pause()
         elif key == ord('n'):
             await player_manager.next_track()
         elif key == ord('p'):
             await player_manager.previous_track()
+        elif key == ord('q'):
+            break
 
         await asyncio.sleep(0.1)
     await player_manager.disconnect()
