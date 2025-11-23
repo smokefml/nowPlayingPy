@@ -1,10 +1,54 @@
 import curses
 import nerdfonts as nf
+import re
+
+def chop_string_smart(s: str, max_len: int):
+    """
+    Corta una cadena en fragmentos de longitud máxima max_len, 
+    priorizando los cortes en espacios o signos de puntuación.
+    """
+    chunks = []
+    start_index = 0
+    s_len = len(s)
+
+    while start_index < s_len:
+        # Caso 1: El resto de la cadena cabe en un solo fragmento.
+        if s_len - start_index <= max_len:
+            chunks.append(s[start_index:].strip())
+            break
+
+        # Caso 2: El segmento actual es más largo que max_len.
+        end_index = start_index + max_len
+        segment = s[start_index:end_index]
+
+        # Busca el último espacio o signo de puntuación en el segmento.
+        # Usa r'[\s,.!?;:]' para incluir todos los espacios y puntuación comunes.
+        match = re.search(r'[\s,.!?;:](?=[^\s,.!?;:]*$)', segment)
+
+        if match:
+            # Si se encuentra un punto de corte natural, corta allí.
+            cut_point = start_index + match.start()
+        else:
+            # Si no se encuentra un punto de corte natural dentro del límite,
+            # corta exactamente en max_len (para palabras muy largas).
+            cut_point = end_index
+
+        chunks.append(s[start_index:cut_point].strip())
+        start_index = cut_point
+
+    return chunks
 
 def chop_string(s:str, lg:int):
+    """
+    Corta una cadena en fragmentos de longitud fija lg.
+    """
     return [s[i:i+lg] for i in range(0, len(s), lg)]
 
 def draw_info(window: curses.window, info, ui_attr):
+    """
+    Formatea y muestra la información recibida en el diccionario info,
+    según los atributos en el diccionario ui_attr, en la ventada window.
+    """
     player, title, artist, album, album_art_path, length, position, volume, status = info.values()
     base_color, header_color, separator_color, key_color, value_color, time_bar_color, volume_bar_color, empty_bar_color, separator_length, separator_char, bar_char, key_indent, time_bar_length, volume_bar_length = ui_attr.values()
     status_icon = '󰐎'
@@ -63,13 +107,17 @@ def draw_info(window: curses.window, info, ui_attr):
         if ' - YouTube' in title:
             title = title.replace(" - YouTube", "")
             action = action = '{}  YouTube: '.format(nf.icons['fa_youtube_play'])
-        title_chunks = chop_string(title, 32)
-        window.addstr(3, key_indent, action, key_color)
-        window.addstr(3, key_indent + len(action), title_chunks[0], value_color)
-        if len(title_chunks) >= 2:
-            window.addstr(4, key_indent + 3, "{}".format(title_chunks[1]), value_color)
-        if len(title_chunks) >= 3:
-            window.addstr(5, key_indent + 3, "{}".format(title_chunks[2]), value_color)
+        elif ' / X' in title:
+            title = title.replace(" / X", "")
+            action = 'X  Browsing: '
+        title_chunks = chop_string_smart(title, 32)
+        window.addstr(3, key_indent, action, key_color | curses.A_BOLD)
+        i = 0
+        for chunk in title_chunks:
+            window.addstr(3 + i, key_indent + len(action), chunk, value_color)
+            if i >= 2:
+                break
+            i = i + 1
     else:
         window.addstr(3, key_indent, title_key, key_color | curses.A_BOLD)
         window.addstr(3, key_indent + len(title_key), title, value_color)
