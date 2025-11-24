@@ -1,6 +1,24 @@
+"""
+Manages all the text display
+"""
+
+import random
+import re
+import string
 import curses
 import nerdfonts as nf
-import re
+
+_old_title = ""
+_anim_cicles = 0
+
+extra_icons = {
+        "play_pause":  '󰐎',
+        "volume_crossed": '',
+        "music_note": '󰎇',
+        "music_user": '󰠃',
+        "cd": '󰀥',
+        "music_clock": '󱫜'
+        }
 
 def chop_string_smart(s: str, max_len: int):
     """
@@ -44,6 +62,85 @@ def chop_string(s:str, lg:int):
     """
     return [s[i:i+lg] for i in range(0, len(s), lg)]
 
+def status_icon(status: str):
+    """
+    Devuelve un icono apropiado para el estado recibido.
+    """
+    if status == 'Playing':
+        return nf.icons['fa_play']
+
+    if status == 'Paused':
+        return nf.icons['fa_pause']
+
+    return nf.icons['fa_stop']
+
+def volume_icon(volume: float):
+    """
+    Devuelve un icono apropiado para el nivel de volumen recibido.
+    """
+    if volume == 0.0:
+        return nf.icons['fa_volume_off']
+    if volume <= 0.6:
+        return nf.icons['fa_volume_down']
+    if volume > 0.6:
+        return nf.icons['fa_volume_up']
+
+    return extra_icons['volume_crossed']
+
+def draw_loading_bar(window:curses.window, y:int, x:int, c,
+                     tlen:int, fullp:float, attrf, attre):
+    """
+    Dibuja una barra de carga en la ventana window, posicion y,x, usando el
+    caracter c, de longitud total tlen, de la cual fullp (0,0 a 1,0) esta lleno
+    con atributos attrf para la parte llena y attre para la vacia
+    """
+    len_full = int(fullp * tlen)
+    len_empty = int(tlen - len_full)
+    window.hline(y, x, c, len_full, attrf)
+    window.hline(y, x + len_full, c, len_empty, attre)
+
+def draw_key_value(window:curses.window, y:int, x:int, vstr:str,
+                   kicon='', kstr='', attrk=None, attrv=None):
+    """
+    Dibuja pares key: value, con icono, en la ventana window, posicion x,y,
+    con los atributos attrk y attrv respectivamente
+    """
+    key_str = ''
+    if kicon:
+        key_str = key_str + kicon + "  "
+    if kstr:
+        key_str = key_str + kstr + ": "
+
+    window.addstr(y, x, key_str, attrk)
+    window.addstr(y, x + len(key_str), vstr, attrv)
+
+def format_title_action(t: str):
+    """
+    Formatea titulo y action key para ciertos titulos muy largos
+    generalmente util para web video players
+    """
+    if ' - YouTube' in t:
+        title = t.replace(" - YouTube", "")
+        action = f"{nf.icons['fa_youtube_play']}  YouTube: "
+    elif ' / X' in t:
+        title = t.replace(" / X", "")
+        action = 'X  Browsing: '
+    else:
+        title = t
+        action = f"{nf.icons['fa_film']}  Watching: "
+
+    return title, action
+
+def scramble_str(s: str, disable = False):
+    """
+    Scrambles string for animation purposes
+    """
+    if disable:
+        return s
+
+    rnd_str = ''.join(random.choices(string.ascii_letters + string.digits, k=len(s)))
+    return rnd_str
+
 def draw_info(window: curses.window, info, ui_attr):
     """
     Formatea y muestra la información recibida en el diccionario info,
@@ -51,26 +148,13 @@ def draw_info(window: curses.window, info, ui_attr):
     """
     player, title, artist, album, album_art_path, length, position, volume, status = info.values()
     base_color, header_color, separator_color, key_color, value_color, time_bar_color, volume_bar_color, empty_bar_color, separator_length, separator_char, bar_char, key_indent, time_bar_length, volume_bar_length = ui_attr.values()
-    status_icon = '󰐎'
-    volume_icon = ''
-    title_icon = '󰎇'
-    artist_icon = '󰠃'
-    album_icon = '󰀥'
-    time_icon = '󱫜'
 
-    if status == 'Playing':
-        status_icon = nf.icons['fa_play']
-    elif status == 'Paused':
-        status_icon = nf.icons['fa_pause']
-    else:
-        status_icon = nf.icons['fa_stop']
+    global _old_title
+    global _anim_cicles
 
-    if length > 0:
-        percent = position * 100 / length
-    else:
-        percent = 100
-    filled = int(percent * time_bar_length / 100)
-    empty = int(time_bar_length - filled)
+    if title != _old_title:
+        _anim_cicles = 20
+        _old_title = title
 
     #window.addstr(0,0, "cover: {}".format(album_art_path))
 
@@ -79,12 +163,10 @@ def draw_info(window: curses.window, info, ui_attr):
 
     # If no players
     if player == 'STOP' and status == 'STOP':
-        window.addstr(1, key_indent, "{}  Not Playing"
-                      .format(status_icon),
+        window.addstr(1, key_indent, "{status_icon}  Not Playing",
                       curses.color_pair(1) | curses.A_BOLD
                       )
-        window.addstr(3, key_indent, "{}  {}"
-                      .format(nf.icons['fa_exclamation_triangle'], title), 
+        window.addstr(3, key_indent, "{nf.icons['fa_exclamation_triangle']}  {title}",
                       value_color | curses.A_BOLD
                       )
 
@@ -92,24 +174,13 @@ def draw_info(window: curses.window, info, ui_attr):
         return
 
     # Header
-    window.addstr(1, key_indent, "{}  {} {}"
-                  .format(status_icon, status, player),
+    window.addstr(1, key_indent, f"{status_icon(status)}  {status} {player}",
                   header_color | curses.A_BOLD
                   )
 
     # key: value
-    title_key = "{}  Title: ".format(title_icon)
-    artist_key = "{}  Artist: ".format(artist_icon)
-    album_key = "{}  Album: ".format(album_icon)
-    pos_dur_key = "{}  ".format(time_icon)
     if title and not artist and not album:
-        action = '{}  Watching: '.format(nf.icons['fa_film'])
-        if ' - YouTube' in title:
-            title = title.replace(" - YouTube", "")
-            action = action = '{}  YouTube: '.format(nf.icons['fa_youtube_play'])
-        elif ' / X' in title:
-            title = title.replace(" / X", "")
-            action = 'X  Browsing: '
+        title, action = format_title_action(title)
         title_chunks = chop_string_smart(title, 32)
         window.addstr(3, key_indent, action, key_color | curses.A_BOLD)
         i = 0
@@ -119,44 +190,36 @@ def draw_info(window: curses.window, info, ui_attr):
                 break
             i = i + 1
     else:
-        window.addstr(3, key_indent, title_key, key_color | curses.A_BOLD)
-        window.addstr(3, key_indent + len(title_key), title, value_color)
-        window.addstr(4, key_indent, artist_key, key_color | curses.A_BOLD)
-        window.addstr(4, key_indent + len(artist_key), artist, value_color)
-        window.addstr(5, key_indent, album_key, key_color | curses.A_BOLD)
-        window.addstr(5, key_indent + len(album_key), album, value_color)
+        draw_key_value(window, 3, key_indent, scramble_str(title, _anim_cicles == 0),
+                       extra_icons.get('music_note'),
+                       'Title', key_color | curses.A_BOLD, value_color)
+        draw_key_value(window, 4, key_indent, scramble_str(artist, _anim_cicles == 0),
+                       extra_icons.get('music_user'),
+                       'Artist', key_color | curses.A_BOLD, value_color)
+        draw_key_value(window, 5, key_indent, scramble_str(album, _anim_cicles == 0),
+                       extra_icons.get('cd'),
+                       'Album', key_color | curses.A_BOLD, value_color)
 
-    window.addstr(7, key_indent, pos_dur_key, key_color | curses.A_BOLD)
-    window.addstr(7, key_indent + len(pos_dur_key), "{:02d}:{:02d} / {:02d}:{:02d}"
-        .format(
-            int(position/60), int(position%60),
-            int(length/60), int(length%60)), value_color)
-    window.hline(8, key_indent + 3, bar_char, filled, time_bar_color)
-    window.hline(8, key_indent + filled + 3 , bar_char, empty, empty_bar_color)
+        draw_key_value(window, 7, key_indent,
+                       f"{int(position/60):02d}:{int(position%60):02d} /" +
+                       f"{int(length/60):02d}:{int(length%60):02d}",
+                       extra_icons.get('music_clock'), '',
+                       key_color | curses.A_BOLD, value_color)
+
+    draw_loading_bar(window, 8, key_indent + 3, bar_char, time_bar_length,
+                     1 if length == 0 else position / length,
+                     time_bar_color, empty_bar_color)
 
     if volume:
-        if volume == 0.0:
-            volume_icon = nf.icons['fa_volume_off']
-        elif volume <= 0.6:
-            volume_icon = nf.icons['fa_volume_down']
-        elif volume > 0.6:
-            volume_icon = nf.icons['fa_volume_up']
-        volume_key = "{}  Volume: ".format(volume_icon)
-        window.addstr(10, key_indent, volume_key, key_color | curses.A_BOLD)
-        window.addstr(10, key_indent + len(volume_key), "{}%"
-                      .format(int(volume * 100)), value_color
-        )
-        window.hline(
-            11, key_indent + 3,
-            bar_char,
-            int(volume * volume_bar_length),
-            volume_bar_color
-        )
-        window.hline(
-            11, key_indent + int(volume * volume_bar_length) + 3,
-            bar_char,
-            int(volume_bar_length - volume * volume_bar_length),
-            empty_bar_color
-        )
+        draw_key_value(window,10,key_indent,f"{int(volume * 100)}%",
+                       volume_icon(volume),'Volume',
+                       key_color | curses.A_BOLD, value_color)
+
+        draw_loading_bar(window, 11, key_indent + 3, bar_char,
+                         volume_bar_length, volume,
+                         volume_bar_color, empty_bar_color)
+
+    if _anim_cicles > 0:
+        _anim_cicles = _anim_cicles - 1
 
     window.refresh()
