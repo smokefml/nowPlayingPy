@@ -163,10 +163,10 @@ def draw_info(window: curses.window, info, ui_attr):
 
     # If no players
     if player == 'STOP' and status == 'STOP':
-        window.addstr(1, key_indent, "{status_icon}  Not Playing",
+        window.addstr(1, key_indent, f"{status_icon(status)}  Not Playing",
                       curses.color_pair(1) | curses.A_BOLD
                       )
-        window.addstr(3, key_indent, "{nf.icons['fa_exclamation_triangle']}  {title}",
+        window.addstr(3, key_indent, f"{nf.icons['fa_exclamation_triangle']}  {title}",
                       value_color | curses.A_BOLD
                       )
 
@@ -185,7 +185,8 @@ def draw_info(window: curses.window, info, ui_attr):
         window.addstr(3, key_indent, action, key_color | curses.A_BOLD)
         i = 0
         for chunk in title_chunks:
-            window.addstr(3 + i, key_indent + len(action), chunk, value_color)
+            window.addstr(3 + i, key_indent + len(action),
+                          scramble_str(chunk, _anim_cicles == 0), value_color)
             if i >= 2:
                 break
             i = i + 1
@@ -200,11 +201,11 @@ def draw_info(window: curses.window, info, ui_attr):
                        extra_icons.get('cd'),
                        'Album', key_color | curses.A_BOLD, value_color)
 
-        draw_key_value(window, 7, key_indent,
-                       f"{int(position/60):02d}:{int(position%60):02d} /" +
-                       f"{int(length/60):02d}:{int(length%60):02d}",
-                       extra_icons.get('music_clock'), '',
-                       key_color | curses.A_BOLD, value_color)
+    draw_key_value(window, 7, key_indent,
+                   f"{int(position/60):02d}:{int(position%60):02d} /" +
+                   f"{int(length/60):02d}:{int(length%60):02d}",
+                   extra_icons.get('music_clock'), '',
+                   key_color | curses.A_BOLD, value_color)
 
     draw_loading_bar(window, 8, key_indent + 3, bar_char, time_bar_length,
                      1 if length == 0 else position / length,
