@@ -78,6 +78,9 @@ class PlayerBusConnection:
         if self.props_interface is None:
             await self.connect()
 
+        if "firefox" in self.player_bus_name and prop_string == "Volume":
+            return None # Firefox does not support volume and we cant check safely
+
         try:
             return await self.props_interface.call_get(iface_string, prop_string) # Type: ignore
         except DBusErrors.DBusError as e:

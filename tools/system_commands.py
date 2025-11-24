@@ -10,4 +10,11 @@ def kitty_icat(path, x=0, y=0, w=36, h=36):
             "--stdin", "no",
             path
         ]
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=True)
+
+def kitty_icat_clear():
+    cmd = [
+            "kitty", "+kitten", "icat",
+            "--silent", "--clear"
+        ]
+    subprocess.run(cmd, check=True)

@@ -5,7 +5,7 @@ from dbus_service.player_bus_connection import PlayerBusConnection
 from tools.cover_tools import get_cover, no_cover
 from tools.json_tools import config_loader
 from ui.text_content import draw_info
-from ui.image_content import draw_picture
+from ui.image_content import draw_picture, clear_picture
 
 MIN_WIDTH = 80
 MIN_HEIGHT = 22
@@ -36,12 +36,14 @@ async def async_main(stdscr):
     curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
     last_cover = ""
+    redraw = False
 
     while True:
         height, width = stdscr.getmaxyx()
         if height != old_height or width != old_width:
             old_height = height
             old_width = width
+            redraw = True
             stdscr.clear()
 
         try:
@@ -79,7 +81,14 @@ async def async_main(stdscr):
             "status": status
         }
 
+        if cover != last_cover:
+            redraw = True
+            last_cover = cover
+
         if height < MIN_HEIGHT or width < MIN_WIDTH:
+            if redraw:
+                clear_picture(cover_method)
+                redraw = False
             stdscr.addstr(2, 2, f"Terminal Size: {width}x{height}", curses.color_pair(2))
             stdscr.addstr(4, 2, "Terminal too small!", curses.color_pair(1))
             stdscr.refresh()
@@ -107,9 +116,9 @@ async def async_main(stdscr):
             coverwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
             coverwin.refresh()
             draw_info(infowin, playing_info, ui_elements)
-            if cover != last_cover:
+            if redraw:
                 draw_picture(cover, cover_method, cover_size)
-                last_cover = cover
+                redraw = False
 
         key = stdscr.getch()
         if key == ord(' '):

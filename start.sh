@@ -18,9 +18,6 @@ if [ -f "requirements.txt" ]; then
 fi
 
 echo ">>> Running app..."
-python run.py
-
 echo ">>> Bye!"
-
-deactivate 2>/dev/null || true
+exec python run.py
 
