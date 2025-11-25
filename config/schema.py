@@ -76,17 +76,3 @@ class Config:
     """
     app: AppConfig = field(default_factory=AppConfig)
     ui: UIConfig = field(default_factory=UIConfig)
-
-@dataclass
-class ColorPairList:
-    """
-    Tabla de colores incializados en curses
-    """
-    background: int
-    error: int
-    alert: int
-    table: Dict[str, int] = field(default_factory=dict)
-
-    def __post_init__(self):
-        for key, value in self.table.items():
-            setattr(self, key, value)

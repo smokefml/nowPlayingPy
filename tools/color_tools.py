@@ -1,5 +1,4 @@
 import curses
-from config.schema import ColorPairList
 
 COLOR_MAP = {
     "black": curses.COLOR_BLACK,
@@ -56,6 +55,23 @@ def resolve_color(color_str, fallback=curses.COLOR_WHITE):
 
     # 3. fallback
     return fallback
+
+class ColorPairList:
+    """Colores inicializados por curses"""
+    def __init__(self, bg, error, alert, colors):
+        self.background = bg
+        self.error = error
+        self.alert = alert
+        self.foreground = 0
+        self.header_color = 0
+        self.separator_color = 0
+        self.key_color = 0
+        self.value_color = 0
+        self.time_bar_color = 0
+        self.volume_bar_color = 0
+        self.empty_bar_color = 0
+        for key, value in colors.items():
+            setattr(self, key, value)
 
 def init_color_pairs(colors_config):
     bg = resolve_color(colors_config["background"])

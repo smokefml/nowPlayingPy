@@ -107,6 +107,8 @@ async def async_main(stdscr):
                 coverwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
             infowin.bkgd(' ', config.ui.colors.table.foreground)
             coverwin.bkgd(' ', config.ui.colors.table.foreground)
+            #print(config.ui.colors.table.foreground)
+            #await asyncio.sleep(20)
             coverwin.refresh()
             draw_info(infowin, playing_info)
             if redraw:
