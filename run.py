@@ -3,37 +3,27 @@ import asyncio
 
 from dbus_service.player_bus_connection import PlayerBusConnection
 from tools.cover_tools import get_cover, no_cover
-from tools.json_tools import config_loader
 from ui.text_content import draw_info
 from ui.image_content import draw_picture, clear_picture
+from config.loader import get_config
 
 MIN_WIDTH = 80
 MIN_HEIGHT = 22
 
 async def async_main(stdscr):
-    config = config_loader()
+    config = get_config() 
 
-    player_manager = PlayerBusConnection(config["favorite_player"])
+    player_manager = PlayerBusConnection(config.app.favorite_player)
     try:
         await player_manager.connect()
     except Exception as e:
         print(f"Ocurrió un problema al conectar con DBus: {e}")
-
-    cover_size = config["cover_size"]
-    cover_method = config["cover_method"]
-    info_column = cover_size + 3
-    draw_borders = config["draw_borders"]
 
     old_height = 0
     old_width = 0
     stdscr.nodelay(True)
     curses.curs_set(0)
     stdscr.clear()
-
-    base_bg = config["base_bg"]
-    ui_elements = config["ui_elements"]
-    curses.init_pair(1, curses.COLOR_RED, base_bg)
-    curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
     last_cover = ""
     redraw = False
@@ -87,12 +77,16 @@ async def async_main(stdscr):
 
         if height < MIN_HEIGHT or width < MIN_WIDTH:
             if redraw:
-                clear_picture(cover_method)
+                clear_picture()
                 redraw = False
-            stdscr.addstr(2, 2, f"Terminal Size: {width}x{height}", curses.color_pair(2))
-            stdscr.addstr(4, 2, "Terminal too small!", curses.color_pair(1))
+            stdscr.addstr(2, 2, f"Terminal Size: {width}x{height}",
+                          config.ui.colors.table.alert)
+            stdscr.addstr(4, 2, "Terminal too small!",
+                          config.ui.colors.table.error)
             stdscr.refresh()
         else:
+            info_column = config.ui.cover.size + 3
+            draw_borders = config.ui.draw_borders
             infowin = curses.newwin(height, width - info_column, 0, info_column)
             coverwin = curses.newwin(height, info_column, 0, 0)
             if draw_borders:
@@ -111,13 +105,12 @@ async def async_main(stdscr):
                 coverwin.addch(int(info_column / 2), 0, curses.ACS_LTEE)
                 infowin.addch(int(info_column / 2), 0, curses.ACS_RTEE)
                 coverwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
-            infowin.bkgd(' ', ui_elements['base_color'])
-            coverwin.bkgd(' ', ui_elements['base_color'])
-            coverwin.hline(int(info_column / 2), 1, curses.ACS_HLINE, info_column - 1)
+            infowin.bkgd(' ', config.ui.colors.table.foreground)
+            coverwin.bkgd(' ', config.ui.colors.table.foreground)
             coverwin.refresh()
-            draw_info(infowin, playing_info, ui_elements)
+            draw_info(infowin, playing_info)
             if redraw:
-                draw_picture(cover, cover_method, cover_size)
+                draw_picture(cover)
                 redraw = False
 
         key = stdscr.getch()

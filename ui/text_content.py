@@ -8,6 +8,8 @@ import string
 import curses
 import nerdfonts as nf
 
+from config.loader import get_config
+
 _old_title = ""
 _anim_cicles = 0
 
@@ -141,13 +143,18 @@ def scramble_str(s: str, disable = False):
     rnd_str = ''.join(random.choices(string.ascii_letters + string.digits, k=len(s)))
     return rnd_str
 
-def draw_info(window: curses.window, info, ui_attr):
+def draw_info(window: curses.window, info):
     """
     Formatea y muestra la información recibida en el diccionario info,
     según los atributos en el diccionario ui_attr, en la ventada window.
     """
+    config = get_config()
+    colors = config.ui.colors.table
+    sep_props = config.ui.separator
+    bar_props = config.ui.bars
+    key_indent = 2
+
     player, title, artist, album, album_art_path, length, position, volume, status = info.values()
-    base_color, header_color, separator_color, key_color, value_color, time_bar_color, volume_bar_color, empty_bar_color, separator_length, separator_char, bar_char, key_indent, time_bar_length, volume_bar_length = ui_attr.values()
 
     global _old_title
     global _anim_cicles
@@ -159,7 +166,7 @@ def draw_info(window: curses.window, info, ui_attr):
     #window.addstr(0,0, "cover: {}".format(album_art_path))
 
     # Separator
-    window.hline(2, key_indent, separator_char, separator_length, separator_color)
+    window.hline(2, key_indent, sep_props.char, sep_props.length, colors.separator_color)
 
     # If no players
     if player == 'STOP' and status == 'STOP':
@@ -167,7 +174,7 @@ def draw_info(window: curses.window, info, ui_attr):
                       curses.color_pair(1) | curses.A_BOLD
                       )
         window.addstr(3, key_indent, f"{nf.icons['fa_exclamation_triangle']}  {title}",
-                      value_color | curses.A_BOLD
+                      colors.value_color | curses.A_BOLD
                       )
 
         window.refresh()
@@ -175,50 +182,50 @@ def draw_info(window: curses.window, info, ui_attr):
 
     # Header
     window.addstr(1, key_indent, f"{status_icon(status)}  {status} {player}",
-                  header_color | curses.A_BOLD
+                  colors.header_color | curses.A_BOLD
                   )
 
     # key: value
     if title and not artist and not album:
         title, action = format_title_action(title)
         title_chunks = chop_string_smart(title, 32)
-        window.addstr(3, key_indent, action, key_color | curses.A_BOLD)
+        window.addstr(3, key_indent, action, colors.key_color | curses.A_BOLD)
         i = 0
         for chunk in title_chunks:
             window.addstr(3 + i, key_indent + len(action),
-                          scramble_str(chunk, _anim_cicles == 0), value_color)
+                          scramble_str(chunk, _anim_cicles == 0), colors.value_color)
             if i >= 2:
                 break
             i = i + 1
     else:
         draw_key_value(window, 3, key_indent, scramble_str(title, _anim_cicles == 0),
                        extra_icons.get('music_note'),
-                       'Title', key_color | curses.A_BOLD, value_color)
+                       'Title', colors.key_color | curses.A_BOLD, colors.value_color)
         draw_key_value(window, 4, key_indent, scramble_str(artist, _anim_cicles == 0),
                        extra_icons.get('music_user'),
-                       'Artist', key_color | curses.A_BOLD, value_color)
+                       'Artist', colors.key_color | curses.A_BOLD, colors.value_color)
         draw_key_value(window, 5, key_indent, scramble_str(album, _anim_cicles == 0),
                        extra_icons.get('cd'),
-                       'Album', key_color | curses.A_BOLD, value_color)
+                       'Album', colors.key_color | curses.A_BOLD, colors.value_color)
 
     draw_key_value(window, 7, key_indent,
                    f"{int(position/60):02d}:{int(position%60):02d} /" +
                    f"{int(length/60):02d}:{int(length%60):02d}",
                    extra_icons.get('music_clock'), '',
-                   key_color | curses.A_BOLD, value_color)
+                   colors.key_color | curses.A_BOLD, colors.value_color)
 
-    draw_loading_bar(window, 8, key_indent + 3, bar_char, time_bar_length,
+    draw_loading_bar(window, 8, key_indent + 3, bar_props.char, bar_props.position_length,
                      1 if length == 0 else position / length,
-                     time_bar_color, empty_bar_color)
+                     colors.time_bar_color, colors.empty_bar_color)
 
     if volume:
         draw_key_value(window,10,key_indent,f"{int(volume * 100)}%",
                        volume_icon(volume),'Volume',
-                       key_color | curses.A_BOLD, value_color)
+                       colors.key_color | curses.A_BOLD, colors.value_color)
 
-        draw_loading_bar(window, 11, key_indent + 3, bar_char,
-                         volume_bar_length, volume,
-                         volume_bar_color, empty_bar_color)
+        draw_loading_bar(window, 11, key_indent + 3, bar_props.char,
+                         bar_props.volume_length, volume,
+                         colors.volume_bar_color, colors.empty_bar_color)
 
     if _anim_cicles > 0:
         _anim_cicles = _anim_cicles - 1

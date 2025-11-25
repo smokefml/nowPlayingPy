@@ -1,4 +1,5 @@
 import curses
+from config.schema import ColorPairList
 
 COLOR_MAP = {
     "black": curses.COLOR_BLACK,
@@ -73,9 +74,16 @@ def init_color_pairs(colors_config):
 
     return pairs, bg
 
-def init_ui_colors(config):
+def init_ui_colors(colors):
     curses.start_color()
 
-    colors = config["ui"]["colors"]
-    return init_color_pairs(colors)
+    pairs, bg = init_color_pairs(colors)
 
+    curses.init_pair(1,resolve_color('red'),bg)
+    curses.init_pair(2,bg,resolve_color('white'))
+
+    error_color = curses.color_pair(1)
+    alert_color = curses.color_pair(2)
+
+    color_list = ColorPairList(bg,error_color,alert_color,pairs)
+    return color_list
