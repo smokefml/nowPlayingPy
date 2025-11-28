@@ -154,13 +154,20 @@ def draw_info(window: curses.window, info):
     bar_props = config.ui.bars
     key_indent = 2
 
-    player, title, artist, album, album_art_path, length, position, volume, status = info.values()
+    player = info.player
+    title = info.title
+    artist = info.artist
+    album = info.album
+    length = info.length
+    position = info.position
+    volume = info.volume
+    status = info.status
 
     global _old_title
     global _anim_cicles
 
     if title != _old_title:
-        _anim_cicles = 20
+        _anim_cicles = 120
         _old_title = title
 
     #window.addstr(0,0, "cover: {}".format(album_art_path))
@@ -169,11 +176,11 @@ def draw_info(window: curses.window, info):
     window.hline(2, key_indent, sep_props.char, sep_props.length, colors.separator_color)
 
     # If no players
-    if player == 'STOP' and status == 'STOP':
+    if not player and not status:
         window.addstr(1, key_indent, f"{status_icon(status)}  Not Playing",
                       curses.color_pair(1) | curses.A_BOLD
                       )
-        window.addstr(3, key_indent, f"{nf.icons['fa_exclamation_triangle']}  {title}",
+        window.addstr(3, key_indent, f"{nf.icons['fa_exclamation_triangle']}  {info.note}",
                       colors.value_color | curses.A_BOLD
                       )
 

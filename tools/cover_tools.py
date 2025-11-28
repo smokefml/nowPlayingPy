@@ -2,9 +2,9 @@ import os
 from .url_tools import extract_youtube_id, download_image
 
 def get_cover(metadata):
-    title = metadata["xesam:title"].value if "xesam:title" in metadata else ""
-    picture_url = metadata["mpris:artUrl"].value if "mpris:artUrl" in metadata else None
-    url = metadata["xesam:url"].value if "xesam:url" in metadata else None
+    title = metadata.get("xesam:title", "")
+    picture_url = metadata.get("mpris:artUrl", None)
+    url = metadata.get("xesam:url", None)
     picture_local_uri = ""
 
     if "xesam:url" in metadata:

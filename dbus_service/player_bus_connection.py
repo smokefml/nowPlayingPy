@@ -1,4 +1,3 @@
-import asyncio
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.aio.proxy_object import ProxyInterface
 from dbus_next import errors as DBusErrors
@@ -12,12 +11,13 @@ class PlayerBusConnection:
         self.obj_path = '/org/mpris/MediaPlayer2'
         self.iface_props = 'org.freedesktop.DBus.Properties'
         self.iface_player = 'org.mpris.MediaPlayer2.Player'
-        self.bus = None
+        self.bus: MessageBus | None = None # Tipado más específico
         self.props_interface: ProxyInterface | None = None
-        self.player_interface = None
+        self.player_interface: ProxyInterface | None = None # Tipado más específico
+        self._connected = False # Nuevo flag para el estado de la conexión
 
     async def connect(self):
-        if self.bus is not None and self.props_interface is not None:
+        if self._connected:
             return
 
         try:
@@ -27,10 +27,11 @@ class PlayerBusConnection:
                 raise Exception('No se detecta reproductores de medios.')
 
             self.bus = await MessageBus().connect()
-            instrospection = await self.bus.introspect(self.player_bus_name, self.obj_path)
-            obj = self.bus.get_proxy_object(self.player_bus_name, self.obj_path, instrospection)
+            introspection = await self.bus.introspect(self.player_bus_name, self.obj_path)
+            obj = self.bus.get_proxy_object(self.player_bus_name, self.obj_path, introspection)
             self.props_interface = obj.get_interface(self.iface_props)
             self.player_interface = obj.get_interface(self.iface_player)
+            self._connected = True
         except Exception as e:
             await self.disconnect()
             raise e
@@ -44,101 +45,99 @@ class PlayerBusConnection:
                 return player
         return players[0]
 
-    #---- Control del reproductor ----------------------
+    async def swap_player(self, new_player_name: str):
+        await self.disconnect()
+        self.player_name = new_player_name
+        await self.connect()
+
+    # ---- Control del reproductor (simplificado el manejo de errores) ------
     async def play_pause(self):
-        if self.player_interface:
-            try:
-                await self.player_interface.call_play_pause()
-            except Exception:
-                return
+        try:
+            await self.connect()
+            await self.player_interface.call_play_pause() # type: ignore
+        except Exception:
+            await self.disconnect()
 
     async def next_track(self):
-        if self.player_interface:
-            try:
-                await self.player_interface.call_next()
-            except Exception:
-                return
+        try:
+            await self.connect()
+            await self.player_interface.call_next() # type: ignore
+        except Exception:
+            await self.disconnect()
 
     async def previous_track(self):
-        if self.player_interface:
-            try:
-                await self.player_interface.call_previous()
-            except Exception:
-                return
+        try:
+            await self.connect()
+            await self.player_interface.call_previous() # type: ignore
+        except Exception:
+            await self.disconnect()
 
     async def stop(self):
-        if self.player_interface:
-            try:
-                await self.player_interface.call_stop()
-            except Exception:
-                return
-
-    #---- Obtener datos (Props) ------------------------
-    async def get_prop(self, iface_string: str, prop_string: str):
-        if self.props_interface is None:
+        try:
             await self.connect()
+            await self.player_interface.call_stop() # type: ignore
+        except Exception:
+            await self.disconnect()
 
-        if "firefox" in self.player_bus_name and prop_string == "Volume":
-            return None # Firefox does not support volume and we cant check safely
+    # ---- Obtener datos (Props) (Refactorizado para ser más robusto) -------
+    async def get_prop(self, iface_string: str, prop_string: str, default=None):
+        """Intenta obtener una propiedad, devuelve un valor por defecto si falla."""
+        # Intenta conectar si no lo está. Si falla la conexión, devuelve el valor por defecto.
+        try:
+            await self.connect()
+        except Exception:
+            return default
+
+        # Lógica específica de Firefox movida aquí para consistencia
+        if "firefox" in self.player_bus_name and prop_string == "Volume": # type: ignore
+            return default
 
         try:
-            return await self.props_interface.call_get(iface_string, prop_string) # Type: ignore
+            result = await self.props_interface.call_get(iface_string, prop_string) # type: ignore
+            return result.value
         except DBusErrors.DBusError as e:
-            if e.type == DBusErrors.ErrorType.NOT_SUPPORTED:
-                return None
-            if e.type == DBusErrors.ErrorType.INVALID_ARGS:
-                raise
+            # Captura errores D-Bus específicos y devuelve el valor por defecto
+            if e.type in (DBusErrors.ErrorType.NOT_SUPPORTED, DBusErrors.ErrorType.INVALID_ARGS):
+                return default
+            # Para otros errores D-Bus, desconecta para forzar reconexión futura
             await self.disconnect()
-            await asyncio.sleep(0.1)
-            await self.connect()
-            return await self.props_interface.call_get(iface_string, prop_string) # Type: ignore
+            return default
         except Exception:
-            raise
+            # Captura cualquier otro error, desconecta y devuelve por defecto
+            await self.disconnect()
+            return default
 
     async def get_metadata(self):
-        metadata = await self.get_prop(self.iface_player, 'Metadata')
-
-        if not metadata:
+        # Ahora el método get_prop maneja los errores y devuelve {} por defecto
+        raw_meta = await self.get_prop(self.iface_player, 'Metadata', default={})
+        if not raw_meta:
             return {}
-
-        return metadata.value
+        flat_meta = {k: v.value for k, v in raw_meta.items()}
+        return flat_meta
 
     async def get_identity(self):
-        identity = await self.get_prop('org.mpris.MediaPlayer2', 'Identity')
-
-        if not identity:
-            return self.player_name.title()
-
-        return identity.value
+        identity = await self.get_prop('org.mpris.MediaPlayer2', 'Identity', default='Unknown')
+        if not self._connected:
+            return None
+        return identity
 
     async def get_status(self):
-        status = await self.get_prop(self.iface_player, 'PlaybackStatus')
-
-        if not status:
-            return None
-
-        return status.value
+        # Devuelve None si no se puede obtener el estado
+        return await self.get_prop(self.iface_player, 'PlaybackStatus', default=None)
 
     async def get_position(self):
-        position = await self.get_prop(self.iface_player, 'Position')
-
-        if not position:
-            return 0
-
-        return position.value
+        # Devuelve 0 si no se puede obtener la posición
+        return await self.get_prop(self.iface_player, 'Position', default=0)
 
     async def get_volume(self):
-        if self.props_interface:
-            try:
-                volume = await self.get_prop(self.iface_player, 'Volume')
-                return volume.value
-            except:
-                pass
-        return None
+        # Devuelve None si no se puede obtener el volumen
+        return await self.get_prop(self.iface_player, 'Volume', default=None)
 
-    #---- Desconectar antes de salir! ------------------
+    # ---- Desconectar antes de salir! ------------------
     async def disconnect(self):
         if self.bus:
             self.bus.disconnect()
-            self.bus = None
-            self.props_interface = None
+        self.bus = None
+        self.props_interface = None
+        self.player_interface = None
+        self._connected = False
