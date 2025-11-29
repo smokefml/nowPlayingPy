@@ -7,7 +7,7 @@ class PlayingInfo:
     """
     Inicializa objetos convenientes para consumir en la UI
     """
-    def __init__(self, meta, player, position, status, volume):
+    def __init__(self, meta, player, position, status, volume, repeat, shuffle, note=''):
         self.player = player
         self.title = meta.get("xesam:title", "STOP")
         self.artists = meta.get("xesam:artist", [])
@@ -19,10 +19,9 @@ class PlayingInfo:
         self.position = self.position_us / 1000000
         self.status = status
         self.volume = volume
-        self.note = ''
-
-        if self.player is None:
-            self.note = "No hay reproductores activos."
+        self.repeat = repeat
+        self.shuffle = shuffle
+        self.note = note
 
 class PlayBackControl:
     """
@@ -38,6 +37,8 @@ class PlayBackControl:
         self.position = 0
         self.status = ''
         self.volume = None
+        self.repeat = None
+        self.shuffle = False
         # Cover
         self._last_cover = ''
         self.cover = no_cover()
@@ -54,6 +55,8 @@ class PlayBackControl:
         self.position = await self.manager.get_position()
         self.status = await self.manager.get_status()
         self.volume = await self.manager.get_volume()
+        self.repeat = await self.manager.get_loop_status()
+        self.shuffle = await self.manager.get_shuffle()
         self.update_cover()
 
     def update_cover(self):
@@ -81,8 +84,13 @@ class PlayBackControl:
         """
         Devuelve un objeto con el estado actual de la informacion de reproduccion
         """
+        note = ''
+        if self.player is None:
+            note = 'No hay reproductores activos.'
+
         return PlayingInfo(self.metadata, self.player, self.position,
-                           self.status, self.volume)
+                           self.status, self.volume, self.repeat,
+                           self.shuffle, note)
 
     def get_cover_path(self):
         """
@@ -123,16 +131,26 @@ class PlayBackControl:
         if self._update_task and not self._update_task.done():
             self._update_task.cancel()
             self._update_task = None
-    
+
     # --- Opcional: Métodos de control del reproductor que usan el manager ---
     async def play_pause(self):
         await self.manager.play_pause()
-    
+        await self.update_info()
+
     async def next_track(self):
         await self.manager.next_track()
 
     async def previous_track(self):
         await self.manager.previous_track()
+
+    async def stop(self):
+        await self.manager.stop()
+
+    async def seek_f5s(self):
+        await self.manager.seek(5)
+
+    async def seek_b5s(self):
+        await self.manager.seek(-5)
 
 PLAYBACK_CONTROL = None
 

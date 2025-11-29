@@ -14,13 +14,18 @@ _old_title = ""
 _anim_cicles = 0
 
 extra_icons = {
-        "play_pause":  '󰐎',
-        "volume_crossed": '',
-        "music_note": '󰎇',
-        "music_user": '󰠃',
-        "cd": '󰀥',
-        "music_clock": '󱫜'
-        }
+    "play_pause":  '󰐎',
+    "volume_crossed": '',
+    "music_note": '󰎇',
+    "music_user": '󰠃',
+    "cd": '󰀥',
+    "music_clock": '󱫜',
+    "repeat": '󰑖',
+    "repeat_off": '󰑗',
+    "repeat_once": '󰑘',
+    "shuffle": '󰒟',
+    "shuffle_off": '󰒞'
+}
 
 def chop_string_smart(s: str, max_len: int):
     """
@@ -88,6 +93,16 @@ def volume_icon(volume: float):
         return nf.icons['fa_volume_up']
 
     return extra_icons['volume_crossed']
+
+def repeat_icon(repeat: str):
+    if repeat == 'None':
+        return extra_icons.get('repeat_off')
+    if repeat == 'Track':
+        return extra_icons.get('repeat_once')
+    if repeat == 'Playlist':
+        return extra_icons.get('repeat')
+
+    return extra_icons.get('repeat_off')
 
 def draw_loading_bar(window:curses.window, y:int, x:int, c,
                      tlen:int, fullp:float, attrf, attre):
@@ -216,10 +231,15 @@ def draw_info(window: curses.window, info):
                        'Album', colors.key_color | curses.A_BOLD, colors.value_color)
 
     draw_key_value(window, 7, key_indent,
-                   f"{int(position/60):02d}:{int(position%60):02d} /" +
+                   f"{int(position/60):02d}:{int(position%60):02d} / " +
                    f"{int(length/60):02d}:{int(length%60):02d}",
                    extra_icons.get('music_clock'), '',
                    colors.key_color | curses.A_BOLD, colors.value_color)
+
+    window.addstr(7, key_indent + 18,
+                  f"{repeat_icon(info.repeat)}  " +
+                  f"{extra_icons.get('shuffle') if info.shuffle else extra_icons.get('shuffle_off')}",
+                  colors.key_color)
 
     draw_loading_bar(window, 8, key_indent + 3, bar_props.char, bar_props.position_length,
                      1 if length == 0 else position / length,

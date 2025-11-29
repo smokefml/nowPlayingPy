@@ -50,36 +50,31 @@ class PlayerBusConnection:
         self.player_name = new_player_name
         await self.connect()
 
-    # ---- Control del reproductor (simplificado el manejo de errores) ------
+    # ---- Control del reproductor ------------------------------------------
     async def play_pause(self):
-        try:
-            await self.connect()
+        if await self.can_control():
             await self.player_interface.call_play_pause() # type: ignore
-        except Exception:
-            await self.disconnect()
 
     async def next_track(self):
-        try:
-            await self.connect()
+        if await self.can_control():
             await self.player_interface.call_next() # type: ignore
-        except Exception:
-            await self.disconnect()
 
     async def previous_track(self):
-        try:
-            await self.connect()
+        if await self.can_control():
             await self.player_interface.call_previous() # type: ignore
-        except Exception:
-            await self.disconnect()
 
     async def stop(self):
-        try:
-            await self.connect()
+        if await self.can_control():
             await self.player_interface.call_stop() # type: ignore
-        except Exception:
-            await self.disconnect()
 
-    # ---- Obtener datos (Props) (Refactorizado para ser más robusto) -------
+    async def seek(self, seconds: int):
+        if await self.can_control():
+            await self.player_interface.call_seek(seconds * 1000000)
+
+    async def can_control(self):
+        return await self.get_prop(self.iface_player, 'CanControl', None)
+
+    # ---- Obtener datos (Props) --------------------------------------------
     async def get_prop(self, iface_string: str, prop_string: str, default=None):
         """Intenta obtener una propiedad, devuelve un valor por defecto si falla."""
         # Intenta conectar si no lo está. Si falla la conexión, devuelve el valor por defecto.
@@ -132,6 +127,14 @@ class PlayerBusConnection:
     async def get_volume(self):
         # Devuelve None si no se puede obtener el volumen
         return await self.get_prop(self.iface_player, 'Volume', default=None)
+
+    async def get_loop_status(self):
+        # Devuelve None si no se puede obtener el estado de repetir
+        return await self.get_prop(self.iface_player, 'LoopStatus', default=None)
+
+    async def get_shuffle(self):
+        # Devuelve False si no se puede obtener la propiedad shuffle
+        return await self.get_prop(self.iface_player, 'Shuffle', default=False)
 
     # ---- Desconectar antes de salir! ------------------
     async def disconnect(self):

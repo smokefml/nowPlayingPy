@@ -48,6 +48,10 @@ async def async_main(stdscr):
             await player_manager.next_track()
         elif key == ord('p'):
             await player_manager.previous_track()
+        elif key == ord('a'):
+            await player_manager.seek_b5s()
+        elif key == ord('d'):
+            await player_manager.seek_f5s()
         elif key == ord('q'):
             break
 
