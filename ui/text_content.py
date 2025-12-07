@@ -12,6 +12,8 @@ from config.loader import get_config
 
 _old_title = ""
 _anim_cicles = 0
+_old_msg = ""
+_notif_cicles = 0
 
 extra_icons = {
     "play_pause":  '󰐎',
@@ -111,10 +113,16 @@ def draw_loading_bar(window:curses.window, y:int, x:int, c,
     caracter c, de longitud total tlen, de la cual fullp (0,0 a 1,0) esta lleno
     con atributos attrf para la parte llena y attre para la vacia
     """
+    if fullp > 1.0:
+        fullp = 1.0
+
     len_full = int(fullp * tlen)
     len_empty = int(tlen - len_full)
-    window.hline(y, x, c, len_full, attrf)
-    window.hline(y, x + len_full, c, len_empty, attre)
+    try:
+        window.hline(y, x, c, len_full, attrf)
+        window.hline(y, x + len_full, c, len_empty, attre)
+    except:
+        pass
 
 def draw_key_value(window:curses.window, y:int, x:int, vstr:str,
                    kicon='', kstr='', attrk=None, attrv=None):
@@ -148,14 +156,22 @@ def format_title_action(t: str):
 
     return title, action
 
+def show_note(w:curses.window, y:int, x:int, note:str, attr, show=False):
+    if not show:
+        return
+
+    w.addstr(y,x,f"{nf.icons['fa_exclamation_triangle']}  {note}",attr)
+
 def scramble_str(s: str, disable = False):
     """
     Scrambles string for animation purposes
     """
-    if disable:
-        return s
+    length = min(len(s),45)
 
-    rnd_str = ''.join(random.choices(string.ascii_letters + string.digits, k=len(s)))
+    if disable:
+        return s[:length]
+
+    rnd_str = ''.join(random.choices(string.ascii_letters + string.digits, k=length))
     return rnd_str
 
 def draw_info(window: curses.window, info):
@@ -180,10 +196,16 @@ def draw_info(window: curses.window, info):
 
     global _old_title
     global _anim_cicles
+    global _old_msg
+    global _notif_cicles
 
     if title != _old_title:
         _anim_cicles = 120
         _old_title = title
+
+    if _notif_cicles == 0 and info.note != _old_msg:
+        _notif_cicles = 300
+        _old_msg = info.note
 
     #window.addstr(0,0, "cover: {}".format(album_art_path))
 
@@ -236,14 +258,17 @@ def draw_info(window: curses.window, info):
                    extra_icons.get('music_clock'), '',
                    colors.key_color | curses.A_BOLD, colors.value_color)
 
-    window.addstr(7, key_indent + 18,
+    window.addstr(7, key_indent + bar_props.position_length - 2,
                   f"{repeat_icon(info.repeat)}  " +
                   f"{extra_icons.get('shuffle') if info.shuffle else extra_icons.get('shuffle_off')}",
                   colors.key_color)
 
     draw_loading_bar(window, 8, key_indent + 3, bar_props.char, bar_props.position_length,
-                     1 if length == 0 else position / length,
+                     0 if length == 0 else position / length,
                      colors.time_bar_color, colors.empty_bar_color)
+
+    show_note(window,13,key_indent,_old_msg,colors.value_color,
+              _notif_cicles>0 and len(_old_msg)>0)
 
     if volume:
         draw_key_value(window,10,key_indent,f"{int(volume * 100)}%",
@@ -256,5 +281,8 @@ def draw_info(window: curses.window, info):
 
     if _anim_cicles > 0:
         _anim_cicles = _anim_cicles - 1
+
+    if _notif_cicles > 0:
+        _notif_cicles = _notif_cicles - 1
 
     window.refresh()

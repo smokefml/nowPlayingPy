@@ -19,6 +19,11 @@ def extract_youtube_id(url: str) -> str | None:
         # path arranca con "/", lo sacamos
         return parsed.path.lstrip("/")
 
+    # Caso 3: youtube.com/shorts/ID
+    if parsed.hostname and "shorts" in parsed.path:
+        # path arranca con "shorts/", lo sacamos
+        return parsed.path.lstrip("shorts/")
+
     return None
 
 def download_image(url: str, folder="/tmp/nowPlaying") -> str | None:
@@ -43,5 +48,5 @@ def download_image(url: str, folder="/tmp/nowPlaying") -> str | None:
         else:
             return None
     except Exception as e:
-        print("Error al descargar la imagen: ", e)
+        #print("Error al descargar la imagen: ", e)
         return None

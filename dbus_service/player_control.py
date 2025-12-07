@@ -39,11 +39,12 @@ class PlayBackControl:
         self.volume = None
         self.repeat = None
         self.shuffle = False
+        self.note = ''
         # Cover
         self._last_cover = ''
         self.cover = no_cover()
         self.should_refresh = False
-        # Poblamos los atributos la primera vez al crear el objeto
+        # Referencia reservada para la tarea de actualización
         self._update_task = None
 
     async def update_info(self):
@@ -57,13 +58,20 @@ class PlayBackControl:
         self.volume = await self.manager.get_volume()
         self.repeat = await self.manager.get_loop_status()
         self.shuffle = await self.manager.get_shuffle()
+        self.note = ''
         self.update_cover()
+
+        if self.player is None:
+            self.set_note('No hay reproductores activos.')
 
     def update_cover(self):
         """
         Refresca el estado de la portada
         """
         self.cover = get_cover(self.metadata)
+        # Nos aseguramos de que cover ES SIEMPRE un PATH
+        if self.cover is None or not self.cover:
+            self.cover = no_cover()
         if self.cover != self._last_cover:
             self.should_refresh = True
             self._last_cover = self.cover
@@ -84,13 +92,9 @@ class PlayBackControl:
         """
         Devuelve un objeto con el estado actual de la informacion de reproduccion
         """
-        note = ''
-        if self.player is None:
-            note = 'No hay reproductores activos.'
-
         return PlayingInfo(self.metadata, self.player, self.position,
                            self.status, self.volume, self.repeat,
-                           self.shuffle, note)
+                           self.shuffle, self.note)
 
     def get_cover_path(self):
         """
@@ -98,6 +102,9 @@ class PlayBackControl:
         refrescar en pantalla
         """
         return self.cover, self.should_refresh
+
+    def set_note(self, note: ''):
+        self.note = note
 
     # --- Gestion del bucle de actualizacion ---
     async def _update_loop(self):
@@ -134,23 +141,76 @@ class PlayBackControl:
 
     # --- Opcional: Métodos de control del reproductor que usan el manager ---
     async def play_pause(self):
-        await self.manager.play_pause()
-        await self.update_info()
+        try:
+            await self.manager.play_pause()
+            return self.status.lower()
+        except Exception as e:
+            emsg = f"{e}"
+            if "not available" in emsg:
+                self.set_note("Acción no disponible")
+            else:
+                self.set_note(emsg)
+        return None
 
     async def next_track(self):
-        await self.manager.next_track()
+        try:
+            await self.manager.next_track()
+            return 'next_track'
+        except Exception as e:
+            emsg = f"{e}"
+            if "not available" in emsg:
+                self.set_note("Acción no disponible")
+            else:
+                self.set_note(emsg)
+            return None
 
     async def previous_track(self):
-        await self.manager.previous_track()
+        try:
+            await self.manager.previous_track()
+            return 'previous_track'
+        except Exception as e:
+            emsg = f"{e}"
+            if "not available" in emsg:
+                self.set_note("Acción no disponible")
+            else:
+                self.set_note(emsg)
+            return None
 
     async def stop(self):
-        await self.manager.stop()
+        try:
+            await self.manager.stop()
+            return 'stop'
+        except Exception as e:
+            emsg = f"{e}"
+            if "not available" in emsg:
+                self.set_note("Acción no disponible")
+            else:
+                self.set_note(emsg)
+            return None
 
     async def seek_f5s(self):
-        await self.manager.seek(5)
+        try:
+            await self.manager.seek(5)
+            return 'seek_f5s'
+        except Exception as e:
+            emsg = f"{e}"
+            if "not available" in emsg:
+                self.set_note("Acción no disponible")
+            else:
+                self.set_note(emsg)
+            return None
 
     async def seek_b5s(self):
-        await self.manager.seek(-5)
+        try:
+            await self.manager.seek(-5)
+            return 'seek_b5s'
+        except Exception as e:
+            emsg = f"{e}"
+            if "not available" in emsg:
+                self.set_note("Acción no disponible")
+            else:
+                self.set_note(emsg)
+            return None
 
 PLAYBACK_CONTROL = None
 

@@ -58,10 +58,10 @@ def resolve_color(color_str, fallback=curses.COLOR_WHITE):
 
 class ColorPairList:
     """Colores inicializados por curses"""
-    def __init__(self, bg, error, alert, colors):
+    def __init__(self, colors, bg):
         self.background = bg
-        self.error = error
-        self.alert = alert
+        self.error = 0
+        self.alert = 0
         self.foreground = 0
         self.header_color = 0
         self.separator_color = 0
@@ -70,14 +70,32 @@ class ColorPairList:
         self.time_bar_color = 0
         self.volume_bar_color = 0
         self.empty_bar_color = 0
+        self._count = 0
+        self._colors = colors
+
         for key, value in colors.items():
             setattr(self, key, value)
+            self._count += 1
+
+    def __len__(self):
+        return self._count
+
+    def __getitem__(self, index):
+        return curses.color_pair(index)
 
 def init_color_pairs(colors_config):
     bg = resolve_color(colors_config["background"])
 
+    #curses.init_pair(0,resolve_color('white'),bg)
+    curses.init_pair(1,resolve_color('red'),bg)
+    curses.init_pair(2,bg,resolve_color('white'))
+
     pairs = {}
     pair_id = 3
+
+    #pairs['background'] = curses.color_pair(0)
+    pairs['error'] = curses.color_pair(1)
+    pairs['alert'] = curses.color_pair(2)
 
     for key, color_str in colors_config.items():
         if key == "background":
@@ -95,11 +113,5 @@ def init_ui_colors(colors):
 
     pairs, bg = init_color_pairs(colors)
 
-    curses.init_pair(1,resolve_color('red'),bg)
-    curses.init_pair(2,bg,resolve_color('white'))
-
-    error_color = curses.color_pair(1)
-    alert_color = curses.color_pair(2)
-
-    color_list = ColorPairList(bg,error_color,alert_color,pairs)
+    color_list = ColorPairList(pairs,bg)
     return color_list
