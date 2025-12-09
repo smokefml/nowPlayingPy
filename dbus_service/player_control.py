@@ -139,7 +139,7 @@ class PlayBackControl:
             self._update_task.cancel()
             self._update_task = None
 
-    # --- Opcional: Métodos de control del reproductor que usan el manager ---
+    # --- Métodos de control del reproductor que usan el manager ---
     async def play_pause(self):
         try:
             await self.manager.play_pause()
@@ -210,6 +210,36 @@ class PlayBackControl:
                 self.set_note("Acción no disponible")
             else:
                 self.set_note(emsg)
+            return None
+
+    async def volume_up(self):
+        if not self.volume:
+            return None
+        newvol = self.volume + 0.05
+        newvol = min(newvol, 1.00)
+        newvol = max(newvol, 0.00)
+        try:
+            if await self.manager.set_volume(newvol):
+                self.volume = newvol
+                return 'vol+'
+            return None
+        except Exception as e:
+            self.set_note(f'{e}')
+            return None
+
+    async def volume_down(self):
+        if not self.volume:
+            return None
+        newvol = self.volume - 0.05
+        newvol = min(newvol, 1.00)
+        newvol = max(newvol, 0.00)
+        try:
+            if await self.manager.set_volume(newvol):
+                self.volume = newvol
+                return 'vol-'
+            return None
+        except Exception as e:
+            self.set_note(f'{e}')
             return None
 
 PLAYBACK_CONTROL = None

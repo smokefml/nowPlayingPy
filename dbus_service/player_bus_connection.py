@@ -11,10 +11,10 @@ class PlayerBusConnection:
         self.obj_path = '/org/mpris/MediaPlayer2'
         self.iface_props = 'org.freedesktop.DBus.Properties'
         self.iface_player = 'org.mpris.MediaPlayer2.Player'
-        self.bus: MessageBus | None = None # Tipado más específico
+        self.bus: MessageBus | None = None
         self.props_interface: ProxyInterface | None = None
-        self.player_interface: ProxyInterface | None = None # Tipado más específico
-        self._connected = False # Nuevo flag para el estado de la conexión
+        self.player_interface: ProxyInterface | None = None
+        self._connected = False
 
     async def connect(self):
         if self._connected:
@@ -71,6 +71,16 @@ class PlayerBusConnection:
         if await self.can_control():
             await self.player_interface.call_seek(seconds * 1000000)
 
+    async def set_volume(self, newval: float):
+        try:
+            vol = await self.props_interface.call_get(self.iface_player, 'Volume')
+            vol.value = newval
+            await self.props_interface.call_set(self.iface_player, 'Volume', vol)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
     async def can_control(self):
         return await self.get_prop(self.iface_player, 'CanControl', None)
 
@@ -83,19 +93,19 @@ class PlayerBusConnection:
         except Exception:
             return default
 
-        # Lógica específica de Firefox movida aquí para consistencia
-        if "firefox" in self.player_bus_name and prop_string == "Volume": # type: ignore
-            return default
-
         try:
             result = await self.props_interface.call_get(iface_string, prop_string) # type: ignore
-            return result.value
+            if hasattr(result, 'value'):
+                return result.value
+            return default
         except DBusErrors.DBusError as e:
             # Captura errores D-Bus específicos y devuelve el valor por defecto
-            if e.type in (DBusErrors.ErrorType.NOT_SUPPORTED, DBusErrors.ErrorType.INVALID_ARGS):
+            if e.type in (DBusErrors.ErrorType.NOT_SUPPORTED.value,
+                          DBusErrors.ErrorType.INVALID_ARGS.value):
                 return default
-            # Para otros errores D-Bus, desconecta para forzar reconexión futura
-            await self.disconnect()
+            if e.type == DBusErrors.ErrorType.SERVICE_UNKNOWN.value:
+                await self.disconnect()
+    
             return default
         except Exception:
             # Captura cualquier otro error, desconecta y devuelve por defecto

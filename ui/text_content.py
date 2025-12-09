@@ -54,7 +54,7 @@ def chop_string_smart(s: str, max_len: int):
 
         if match:
             # Si se encuentra un punto de corte natural, corta allí.
-            cut_point = start_index + match.start()
+            cut_point = start_index + match.start() + 1
         else:
             # Si no se encuentra un punto de corte natural dentro del límite,
             # corta exactamente en max_len (para palabras muy largas).

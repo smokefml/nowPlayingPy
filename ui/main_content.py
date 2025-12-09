@@ -26,9 +26,9 @@ def draw_all_borders(rwin:curses.window, lwin:curses.window, swidth:int, draw=Fa
         curses.ACS_ULCORNER, curses.ACS_HLINE,
         curses.ACS_LLCORNER, curses.ACS_HLINE
     )
-    lwin.addch(int(swidth / 2), 0, curses.ACS_LTEE)
-    rwin.addch(int(swidth / 2), 0, curses.ACS_RTEE)
-    lwin.hline(int(swidth / 2), 1, curses.ACS_HLINE, swidth - 1)
+    #lwin.addch(int(swidth / 2), 0, curses.ACS_LTEE)
+    #rwin.addch(int(swidth / 2), 0, curses.ACS_RTEE)
+    #lwin.hline(int(swidth / 2), 1, curses.ACS_HLINE, swidth - 1)
 
 def draw_conent(main_win: curses.window, player: PlayBackControl, action):
     """
@@ -36,7 +36,7 @@ def draw_conent(main_win: curses.window, player: PlayBackControl, action):
     """
     # Config
     MIN_WIDTH = 80
-    MIN_HEIGTH = 22
+    MIN_HEIGTH = 20
     config = get_config()
     info_column = config.ui.cover.size + 3
     draw_borders = config.ui.draw_borders
@@ -67,6 +67,7 @@ def draw_conent(main_win: curses.window, player: PlayBackControl, action):
 
     coverwin.refresh()
     # Dibujamos el contenido
-    draw_info(infowin, player.get_info())
+    play_info = player.get_info()
+    draw_info(infowin, play_info)
     draw_cover(cover, should_refresh, player.set_cover_refreshed)
-    draw_osd(infowin, action)
+    draw_osd(infowin, play_info, action)
