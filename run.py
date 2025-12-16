@@ -32,11 +32,10 @@ async def async_main(stdscr):
         if key_press == 'quit':
             break
 
-        draw_conent(stdscr, player_manager, key_press)
+        await draw_conent(stdscr, player_manager, key_press)
 
         await asyncio.sleep(0.01)
-    player_manager.stop_update_loop()
-    await player_manager.manager.disconnect()
+    await player_manager.clean()
 
 def main_sync_wrapper(stdscr):
     asyncio.run(async_main(stdscr))

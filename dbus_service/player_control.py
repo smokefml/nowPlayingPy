@@ -50,6 +50,7 @@ class PlayBackControl:
     async def update_info(self):
         """
         Refresca el estado de reproduccion con la informacion en el bus
+        Estas solicitudes fuerzan la coneccion con el reproducotor en el bus
         """
         self.metadata = await self.manager.get_metadata()
         self.player = await self.manager.get_identity()
@@ -138,6 +139,14 @@ class PlayBackControl:
         if self._update_task and not self._update_task.done():
             self._update_task.cancel()
             self._update_task = None
+
+    async def clean(self):
+        """
+        Tareas de limpieza antes de salir
+        Detiene la tarea de actualizacion y cierra la coneccion con el bus
+        """
+        self.stop_update_loop()
+        await self.manager.disconnect()
 
     # --- Métodos de control del reproductor que usan el manager ---
     async def play_pause(self):

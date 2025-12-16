@@ -31,6 +31,10 @@ async def key_catcher(win: curses.window, player_manager):
             "cb": player_manager.volume_down,
             "keycode": ord('s')
             },
+        "select_player":{
+            "cb": lambda : 'select_player',
+            "keycode": ord('z')
+            },
         "quit": {
             "cb": lambda : 'quit',
             "keycode": ord('q')

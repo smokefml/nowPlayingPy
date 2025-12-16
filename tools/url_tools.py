@@ -1,5 +1,6 @@
 from urllib.parse import urlparse, parse_qs
 import os
+import shutil
 import hashlib
 import requests
 
@@ -33,7 +34,17 @@ def download_image(url: str, folder="/tmp/nowPlaying") -> str | None:
     dest_path = os.path.join(folder, h)
 
     if os.path.exists(dest_path):
-        return dest_path
+        if verify_image(dest_path):
+            return dest_path
+
+        return None
+
+    if 'file://' in url:
+        shutil.copy(url[7:], dest_path)
+        if verify_image(dest_path):
+            return dest_path
+
+        return None
 
     try:
         r = requests.get(url, timeout=10)

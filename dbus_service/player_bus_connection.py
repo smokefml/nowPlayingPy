@@ -16,12 +16,14 @@ class PlayerBusConnection:
         self.player_interface: ProxyInterface | None = None
         self._connected = False
 
-    async def connect(self):
+    async def connect(self, busname = None):
         if self._connected:
             return
 
         try:
-            self.player_bus_name = await self.select_player(self.player_name)
+            self.player_bus_name = busname
+            if not busname:
+                self.player_bus_name = await self.select_player(self.player_name)
 
             if not self.player_bus_name:
                 raise Exception('No se detecta reproductores de medios.')
@@ -46,9 +48,12 @@ class PlayerBusConnection:
         return players[0]
 
     async def swap_player(self, new_player_name: str):
-        await self.disconnect()
-        self.player_name = new_player_name
-        await self.connect()
+        try:
+            await self.disconnect()
+            self.player_name = new_player_name
+            await self.connect(new_player_name)
+        except Exception as e:
+            print(e)
 
     # ---- Control del reproductor ------------------------------------------
     async def play_pause(self):

@@ -7,8 +7,11 @@ def draw_cover(cover, should_refresh, refreshed):
     tupla (path,condicion) y, si se realizó la acción, llama al callback refreshed()
     """
     if should_refresh:
-        draw_picture(cover)
-        refreshed()
+        try:
+            draw_picture(cover)
+            refreshed()
+        except:
+            return
 
 def draw_picture(uri: str):
     """

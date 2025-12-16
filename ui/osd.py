@@ -8,12 +8,16 @@ _old_action = None
 
 
 def volup_acn(volume):
+    if not volume:
+        return []
     return [
         f"                   {int(volume * 100)}   Vol + >           ",
         "                                            ",
     ] + vol_glyph(volume)
 
 def voldn_acn(volume):
+    if not volume:
+        return []
     return [
         f"         < - Vol   {int(volume * 100)}                     ",
         "                                            ",

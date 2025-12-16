@@ -1,11 +1,10 @@
-import random
-import string
 import curses
 
 from config.loader import get_config
 from dbus_service.player_control import PlayBackControl
 from ui.text_content import draw_info
 from ui.image_content import draw_cover, clear_picture
+from ui.selector import show_players
 from ui.osd import draw_osd
 
 def draw_all_borders(rwin:curses.window, lwin:curses.window, swidth:int, draw=False):
@@ -30,7 +29,7 @@ def draw_all_borders(rwin:curses.window, lwin:curses.window, swidth:int, draw=Fa
     #rwin.addch(int(swidth / 2), 0, curses.ACS_RTEE)
     #lwin.hline(int(swidth / 2), 1, curses.ACS_HLINE, swidth - 1)
 
-def draw_conent(main_win: curses.window, player: PlayBackControl, action):
+async def draw_conent(main_win: curses.window, player: PlayBackControl, action):
     """
     Maneja la presentacion de todo el contenido en la ventana principal main_win
     """
@@ -56,17 +55,15 @@ def draw_conent(main_win: curses.window, player: PlayBackControl, action):
     # Definimos las ventanas
     infowin = curses.newwin(height, width - info_column, 0, info_column)
     coverwin = curses.newwin(height, info_column, 0, 0)
-    # Dibujamos los bordes
-    draw_all_borders(infowin,coverwin,info_column,draw_borders)
     # Color base de la ventana
     infowin.bkgd(' ', config.ui.colors.table.foreground)
     coverwin.bkgd(' ', config.ui.colors.table.foreground)
-
-    #coverwin.addstr(int(info_column / 2) + 1, 2, f"size: {width}x{height}",
-    #                random.choice(config.ui.colors.table))
-
+    # Dibujar bordes
+    draw_all_borders(infowin,coverwin,info_column,draw_borders)
     coverwin.refresh()
+
     # Dibujamos el contenido
+    await show_players(infowin, action=='select_player')
     play_info = player.get_info()
     draw_info(infowin, play_info)
     draw_cover(cover, should_refresh, player.set_cover_refreshed)
